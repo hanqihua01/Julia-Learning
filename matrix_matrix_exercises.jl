@@ -30,3 +30,27 @@ function matmul_dist_3!(C,A,B)
     end
     C
 end
+# Professor's solution
+function matmul_dist_3!(C,A,B)
+    m = size(C,1)
+    n = size(C,2)
+    l = size(A,2)
+    @assert size(A,1) == m
+    @assert size(B,2) == n
+    @assert size(B,1) == l
+    @assert mod(m,nworkers()) == 0
+    # Implement here
+    nrows_w = div(m,nworkers())
+    @sync for (iw,w) in enumerate(workers())
+        lb = 1 + (iw-1)*nrows_w
+        ub = iw*nrows_w
+        A_w = A[lb:ub,:]
+        ftr = @spawnet w begin
+            C_w = similar(A_w)
+            matmul_seq!(C_w,A_w,B)
+            C_w
+        end
+        @async C[lb:ub,:] = fetch(ftr)
+    end
+    C
+end
